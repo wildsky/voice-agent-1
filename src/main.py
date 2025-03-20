@@ -144,7 +144,7 @@ async def talk(audio: UploadFile = File(...)) -> dict:
     # Generate AI response using GPT
     try:
         gpt_response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[{"role": "system", "content": "You are a friendly companion for elderly users."},
                       {"role": "user", "content": user_text}]
         )
