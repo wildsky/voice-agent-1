@@ -72,7 +72,8 @@ async def get_index(request: Request) -> HTMLResponse:
         "whisper": has_whisper,
         "elevenlabs": has_elevenlabs,
         "pydub": has_pydub,
-        "gpt_model": "gpt-3.5-turbo"
+        "gpt_model": "gpt-3.5-turbo",
+        "whisper_model": "tiny"
     }})
 
 @app.get("/test")
