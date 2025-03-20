@@ -37,7 +37,7 @@ try:
     print(f"Successfully imported Whisper")
     has_whisper = True
     # Load Whisper STT model
-    model = whisper.load_model("base")
+    model = whisper.load_model("tiny")
 except Exception as e:
     print(f"Warning: Failed to initialize Whisper: {str(e)}")
     has_whisper = False

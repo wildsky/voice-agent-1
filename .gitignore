@@ -28,6 +28,9 @@ wheels/
 # Environment variables
 .env
 
+# Temp files
+temp/
+
 # IDE specific files
 .idea/
 .vscode/
