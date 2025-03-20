@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Agent Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        #conversation {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .user-message {
+            background-color: #e6f7ff;
+            text-align: right;
+        }
+        .bot-message {
+            background-color: #f1f1f1;
+        }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .status-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎙️ Voice Agent Demo</h1>
+    
+    <div>
+        <button id="start">Start Recording</button>
+        <button id="stop" disabled>Stop Recording</button>
+    </div>
+    
+    <div id="status" class="status-container">Ready to record</div>
+    
+    <div id="conversation" class="conversation-container">
+        <p>Speak to begin a conversation...</p>
+    </div>
+
+    <div class="status-container">
+        <h3>Component Status:</h3>
+        <p>Whisper (Speech-to-Text): <strong>{{ "Active" if components.whisper else "Inactive" }}</strong></p>
+        <p>ElevenLabs (Text-to-Speech): <strong>{{ "Active" if components.elevenlabs else "Inactive" }}</strong></p>
+        <p>PyDub (Audio Processing): <strong>{{ "Active" if components.pydub else "Inactive" }}</strong></p>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        
+        const startButton = document.getElementById('start');
+        const stopButton = document.getElementById('stop');
+        const statusDiv = document.getElementById('status');
+        const conversationDiv = document.getElementById('conversation');
+        
+        // Request microphone access and set up recorder
+        startButton.addEventListener('click', async () => {
+            try {
+                statusDiv.textContent = 'Requesting microphone access...';
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    statusDiv.textContent = 'Processing audio...';
+                    
+                    // Create audio blob and add to conversation
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    
+                    // Display user message
+                    const userMessageDiv = document.createElement('div');
+                    userMessageDiv.className = 'message user-message';
+                    userMessageDiv.textContent = 'You: [Speaking...]';
+                    conversationDiv.appendChild(userMessageDiv);
+                    
+                    // Create form data to send to API
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'recording.webm');
+                    
+                    try {
+                        // Send to API using the correct endpoint
+                        const response = await fetch('/talk', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        // Process response
+                        if (response.headers.get('content-type').includes('audio')) {
+                            // Audio response
+                            const botMessageDiv = document.createElement('div');
+                            botMessageDiv.className = 'message bot-message';
+                            
+                            const blob = await response.blob();
+                            const audioUrl = URL.createObjectURL(blob);
+                            
+                            const audioElement = document.createElement('audio');
+                            audioElement.controls = true;
+                            audioElement.src = audioUrl;
+                            
+                            botMessageDiv.textContent = 'Agent: ';
+                            botMessageDiv.appendChild(audioElement);
+                            
+                            conversationDiv.appendChild(botMessageDiv);
+                            audioElement.play();
+                            
+                        } else {
+                            // Text response
+                            const data = await response.json();
+                            
+                            const botMessageDiv = document.createElement('div');
+                            botMessageDiv.className = 'message bot-message';
+                            
+                            if (data.error) {
+                                botMessageDiv.textContent = `Error: ${data.error}`;
+                                if (data.text) {
+                                    botMessageDiv.textContent += `\nAgent: ${data.text}`;
+                                }
+                            } else if (data.text) {
+                                botMessageDiv.textContent = `Agent: ${data.text}`;
+                            }
+                            
+                            conversationDiv.appendChild(botMessageDiv);
+                        }
+                        
+                    } catch (error) {
+                        statusDiv.textContent = `Error: ${error.message}`;
+                    }
+                    
+                    // Reset for next recording
+                    audioChunks = [];
+                    statusDiv.textContent = 'Ready to record';
+                };
+                
+                // Start recording
+                mediaRecorder.start();
+                isRecording = true;
+                
+                // Update UI
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                statusDiv.textContent = 'Recording... Speak now!';
+                
+            } catch (error) {
+                statusDiv.textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        // Stop recording
+        stopButton.addEventListener('click', () => {
+            if (isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                // Update UI
+                startButton.disabled = false;
+                stopButton.disabled = true;
+            }
+        });
+    </script>
+</body>
+</html>
