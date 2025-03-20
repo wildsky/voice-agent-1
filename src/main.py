@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-// Demo at: http://127.0.0.1:5001
+# Demo at: http://127.0.0.1:5001
 
 # Load environment variables
 load_dotenv()
