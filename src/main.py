@@ -74,7 +74,8 @@ async def get_index(request: Request) -> HTMLResponse:
         "elevenlabs": has_elevenlabs,
         "pydub": has_pydub,
         "gpt_model": "gpt-3.5-turbo",
-        "whisper_model": "tiny"
+        "whisper_model": "tiny",
+        "tts_caching": "active (100 entries)"
     }})
 
 @app.get("/test")
@@ -91,7 +92,8 @@ async def health_check() -> dict:
         "components": {
             "whisper": has_whisper,
             "elevenlabs": has_elevenlabs,
-            "pydub": has_pydub
+            "pydub": has_pydub,
+            "tts_caching": "active (100 entries)"
         }
     }
 
