@@ -9,6 +9,7 @@ import sys
 import time
 from pathlib import Path
 from dotenv import load_dotenv
+from functools import lru_cache
 
 # Demo at: http://127.0.0.1:5001
 
@@ -165,10 +166,9 @@ async def talk(audio: UploadFile = File(...)) -> dict:
         try:
             # Use the appropriate function for ElevenLabs version 0.2.24
             voice = "Bella"
-            tts_audio = elevenlabs.generate(
-                text=bot_text,
-                voice=voice
-            )
+            
+            # Use cached TTS generation
+            tts_audio = cached_tts_generate(bot_text, voice)
             
             # Save generated speech
             output_path = "temp/output.mp3"
@@ -221,6 +221,23 @@ async def talk(audio: UploadFile = File(...)) -> dict:
         timing_data["total_time"] = round(sum(timing_data.values()), 2)
         
         return {"text": bot_text, "timing": timing_data}
+
+# Add LRU cache for TTS generation to improve performance on repetitive responses
+@lru_cache(maxsize=100)
+def cached_tts_generate(text: str, voice: str = "Bella") -> bytes:
+    """Cache TTS responses to avoid regenerating the same text.
+    
+    Args:
+        text: The text to convert to speech
+        voice: The voice to use for generation
+        
+    Returns:
+        Bytes containing the generated audio
+    """
+    return elevenlabs.generate(
+        text=text,
+        voice=voice
+    )
 
 # Add entry point to run the FastAPI app with Uvicorn
 if __name__ == "__main__":
