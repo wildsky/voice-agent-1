@@ -116,6 +116,7 @@
         <p>Whisper (Speech-to-Text): <strong>{{ "Active" if components.whisper else "Inactive" }}</strong></p>
         <p>ElevenLabs (Text-to-Speech): <strong>{{ "Active" if components.elevenlabs else "Inactive" }}</strong></p>
         <p>PyDub (Audio Processing): <strong>{{ "Active" if components.pydub else "Inactive" }}</strong></p>
+        <p>ChatGPT Model: <strong>{{ components.gpt_model }}</strong></p>
     </div>
 
     <script>

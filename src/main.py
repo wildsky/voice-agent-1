@@ -71,7 +71,8 @@ async def get_index(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("index.html", {"request": request, "components": {
         "whisper": has_whisper,
         "elevenlabs": has_elevenlabs,
-        "pydub": has_pydub
+        "pydub": has_pydub,
+        "gpt_model": "gpt-3.5-turbo"
     }})
 
 @app.get("/test")
