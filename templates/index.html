@@ -65,6 +65,31 @@
             background-color: #f8f9fa;
             border-radius: 4px;
         }
+        #timing-results {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-radius: 4px;
+            border-left: 4px solid #4CAF50;
+        }
+        .timing-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .timing-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+        }
+        .timing-label {
+            flex: 3;
+        }
+        .timing-value {
+            flex: 1;
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -79,6 +104,11 @@
     
     <div id="conversation" class="conversation-container">
         <p>Speak to begin a conversation...</p>
+    </div>
+
+    <div id="timing-results" class="status-container" style="display: none;">
+        <h3>Processing Time Breakdown:</h3>
+        <div id="timing-data"></div>
     </div>
 
     <div class="status-container">
@@ -97,6 +127,8 @@
         const stopButton = document.getElementById('stop');
         const statusDiv = document.getElementById('status');
         const conversationDiv = document.getElementById('conversation');
+        const timingResultsDiv = document.getElementById('timing-results');
+        const timingDataDiv = document.getElementById('timing-data');
         
         // Request microphone access and set up recorder
         startButton.addEventListener('click', async () => {
@@ -153,6 +185,9 @@
                             conversationDiv.appendChild(botMessageDiv);
                             audioElement.play();
                             
+                            // Display timing data from headers
+                            displayTimingData(response.headers);
+                            
                         } else {
                             // Text response
                             const data = await response.json();
@@ -170,6 +205,11 @@
                             }
                             
                             conversationDiv.appendChild(botMessageDiv);
+                            
+                            // Display timing data from JSON response
+                            if (data.timing) {
+                                displayTimingDataFromJson(data.timing);
+                            }
                         }
                         
                     } catch (error) {
@@ -206,6 +246,72 @@
                 stopButton.disabled = true;
             }
         });
+        
+        // Function to display timing data from headers
+        function displayTimingData(headers) {
+            // Check if there's timing data in the headers
+            if (headers.has('x-timing-data')) {
+                try {
+                    // Parse the timing data from the headers
+                    const timingData = JSON.parse(headers.get('x-timing-data').replace(/'/g, '"'));
+                    displayTimingDataFromJson(timingData);
+                } catch (error) {
+                    console.error('Error parsing timing data:', error);
+                    
+                    // Try to extract individual timing headers
+                    const timingData = {};
+                    headers.forEach((value, key) => {
+                        if (key.toLowerCase().startsWith('x-timing-')) {
+                            const timingKey = key.substring(9).toLowerCase();
+                            timingData[timingKey] = parseFloat(value);
+                        }
+                    });
+                    
+                    if (Object.keys(timingData).length > 0) {
+                        displayTimingDataFromJson(timingData);
+                    }
+                }
+            }
+        }
+        
+        // Function to display timing data from JSON
+        function displayTimingDataFromJson(timingData) {
+            // Clear previous timing data
+            timingDataDiv.innerHTML = '';
+            
+            // Show the timing results container
+            timingResultsDiv.style.display = 'block';
+            
+            // Create human-readable labels
+            const labels = {
+                audio_processing: "1. Audio Input Processing",
+                speech_to_text: "2. Speech-to-Text Conversion",
+                ai_response: "3. AI Response Generation",
+                text_to_speech: "4. Text-to-Speech Synthesis",
+                response_delivery: "5. Response Delivery",
+                total_time: "Total Processing Time"
+            };
+            
+            // Add each timing item
+            Object.keys(timingData).forEach(key => {
+                if (key in labels) {
+                    const item = document.createElement('div');
+                    item.className = 'timing-item';
+                    
+                    const label = document.createElement('div');
+                    label.className = 'timing-label';
+                    label.textContent = labels[key];
+                    
+                    const value = document.createElement('div');
+                    value.className = 'timing-value';
+                    value.textContent = `${timingData[key]} ms`;
+                    
+                    item.appendChild(label);
+                    item.appendChild(value);
+                    timingDataDiv.appendChild(item);
+                }
+            });
+        }
     </script>
 </body>
 </html>

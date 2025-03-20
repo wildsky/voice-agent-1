@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse
 import openai
 import os
 import sys
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -95,6 +96,11 @@ async def health_check() -> dict:
 async def talk(audio: UploadFile = File(...)) -> dict:
     """Processes user speech, generates AI response, and returns spoken output."""
     
+    timing_data = {}
+    
+    # Step 1: Audio Input Processing
+    step1_start = time.time()
+    
     # Create temp directory if it doesn't exist
     os.makedirs("temp", exist_ok=True)
     
@@ -112,6 +118,12 @@ async def talk(audio: UploadFile = File(...)) -> dict:
         except Exception as e:
             return {"error": f"Failed to convert audio: {str(e)}"}
     
+    step1_end = time.time()
+    timing_data["audio_processing"] = round((step1_end - step1_start) * 1000, 2)  # in milliseconds
+    
+    # Step 2: Speech-to-Text Conversion
+    step2_start = time.time()
+    
     # Transcribe speech to text if whisper is available
     if has_whisper:
         try:
@@ -123,6 +135,12 @@ async def talk(audio: UploadFile = File(...)) -> dict:
         # Fallback for testing when whisper is not available
         user_text = "Hello, I'd like to talk to you today."
     
+    step2_end = time.time()
+    timing_data["speech_to_text"] = round((step2_end - step2_start) * 1000, 2)  # in milliseconds
+    
+    # Step 3: AI Response Generation
+    step3_start = time.time()
+    
     # Generate AI response using GPT
     try:
         gpt_response = openai.ChatCompletion.create(
@@ -133,7 +151,13 @@ async def talk(audio: UploadFile = File(...)) -> dict:
         bot_text = gpt_response["choices"][0]["message"]["content"]
     except Exception as e:
         return {"error": f"Failed to generate response: {str(e)}"}
-
+    
+    step3_end = time.time()
+    timing_data["ai_response"] = round((step3_end - step3_start) * 1000, 2)  # in milliseconds
+    
+    # Step 4: Text-to-Speech Synthesis
+    step4_start = time.time()
+    
     # Convert AI response to speech if elevenlabs is available
     if has_elevenlabs:
         try:
@@ -148,13 +172,53 @@ async def talk(audio: UploadFile = File(...)) -> dict:
             output_path = "temp/output.mp3"
             with open(output_path, "wb") as f:
                 f.write(tts_audio)
-                
-            return FileResponse(output_path, media_type="audio/mpeg")
+            
+            step4_end = time.time()
+            timing_data["text_to_speech"] = round((step4_end - step4_start) * 1000, 2)  # in milliseconds
+            
+            # Step 5: Response Delivery
+            step5_start = time.time()
+            
+            response = FileResponse(output_path, media_type="audio/mpeg")
+            
+            # Add timing data to response headers
+            for key, value in timing_data.items():
+                response.headers[f"X-Timing-{key}"] = str(value)
+            
+            step5_end = time.time()
+            timing_data["response_delivery"] = round((step5_end - step5_start) * 1000, 2)  # in milliseconds
+            
+            # Add total processing time
+            timing_data["total_time"] = round(sum(timing_data.values()), 2)
+            
+            # Add timing data to headers
+            response.headers["X-Timing-Data"] = str(timing_data)
+            
+            return response
+            
         except Exception as e:
-            return {"error": f"Failed to generate speech with elevenlabs: {str(e)}", "text": bot_text}
+            step4_end = time.time()
+            timing_data["text_to_speech"] = round((step4_end - step4_start) * 1000, 2)  # in milliseconds
+            timing_data["response_delivery"] = 0  # Failed
+            timing_data["total_time"] = round(sum(timing_data.values()), 2)
+            
+            return {"error": f"Failed to generate speech with elevenlabs: {str(e)}", 
+                    "text": bot_text,
+                    "timing": timing_data}
     else:
         # Fallback when text-to-speech is not available
-        return {"text": bot_text}
+        step4_end = time.time()
+        timing_data["text_to_speech"] = 0  # Not performed
+        
+        # Step 5: Response Delivery
+        step5_start = time.time()
+        step5_end = time.time()
+        timing_data["response_delivery"] = round((step5_end - step5_start) * 1000, 2)  # in milliseconds
+        
+        # Add total processing time
+        timing_data["total_time"] = round(sum(timing_data.values()), 2)
+        
+        return {"text": bot_text, "timing": timing_data}
 
 # Add entry point to run the FastAPI app with Uvicorn
 if __name__ == "__main__":
