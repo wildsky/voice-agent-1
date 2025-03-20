@@ -35,7 +35,7 @@ A FastAPI application that processes voice input, generates AI responses, and re
    pip install -r requirements.txt
    ```
 
-5. Optional: Create a `.env` file for environment variables
+5. Create a `.env` file for environment variables. Rename .env_template to .env
    ```
    OPENAI_API_KEY=your_openai_api_key
    ELEVENLABS_API_KEY=your_elevenlabs_api_key
